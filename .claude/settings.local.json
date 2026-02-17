@@ -1,0 +1,27 @@
+{
+  "permissions": {
+    "allow": [
+      "WebFetch(domain:www.figma.com)",
+      "Bash(ls:*)",
+      "Bash(head:*)",
+      "Bash(npx create-expo-app@latest:*)",
+      "Bash(npm install:*)",
+      "Bash(npm start)",
+      "Bash(npx expo start:*)",
+      "Bash(timeout:*)",
+      "Bash(netstat:*)",
+      "Bash(curl:*)",
+      "Bash(tail:*)",
+      "Bash(findstr:*)",
+      "Bash(tasklist:*)",
+      "Bash(ipconfig:*)",
+      "Bash(powershell:*)",
+      "Bash(npm run dev:*)",
+      "Bash(npx prisma migrate dev:*)",
+      "Bash(npx prisma db push:*)",
+      "Bash(npx prisma generate:*)",
+      "Bash(npx expo install:*)",
+      "Bash(taskkill:*)"
+    ]
+  }
+}
