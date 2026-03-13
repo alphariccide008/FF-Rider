@@ -164,7 +164,7 @@ export default function DashboardScreen() {
                     <View className="flex-row items-center">
                       <Ionicons name="location-outline" size={16} color="#6B7280" />
                       <Text className="text-textSecondary text-sm ml-2" numberOfLines={1}>
-                        {order.deliveryAddress.street}
+                        {order.deliveryAddress?.street ?? 'Address unavailable'}
                       </Text>
                     </View>
 
