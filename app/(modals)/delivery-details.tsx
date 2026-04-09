@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { View, Text, ScrollView, TouchableOpacity, Linking, Alert } from 'react-native';
+import { View, Text, ScrollView, TouchableOpacity, Linking, Alert, KeyboardAvoidingView, Platform } from 'react-native';
 import { useRouter, useLocalSearchParams } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
 import * as Haptics from 'expo-haptics';
@@ -49,12 +49,18 @@ export default function DeliveryDetailsScreen() {
 
     try {
       await startDelivery(order.id);
-      setSuccessMessage('Trip started! Navigate to customer location.');
+      setSuccessMessage('Trip started! Opening navigation...');
       setShowSuccess(true);
 
-      // Optionally open navigation
+      // Auto-open Google Maps with directions
+      handleNavigate();
+
       setTimeout(() => {
-        handleNavigate();
+        setShowSuccess(false);
+        router.push({
+          pathname: '/(modals)/track-order',
+          params: { orderId: order.id },
+        });
       }, 1500);
     } catch (error: any) {
       setErrorMessage(error.message || 'Failed to start trip');
@@ -113,9 +119,27 @@ export default function DeliveryDetailsScreen() {
   }
 
   function handleNavigate() {
-    const { latitude, longitude } = order.deliveryAddress;
-    const url = `https://www.google.com/maps/dir/?api=1&destination=${latitude},${longitude}`;
-    Linking.openURL(url);
+    const { latitude, longitude, street, city, state } = order.deliveryAddress;
+
+    if (!latitude || !longitude) {
+      // No coordinates — fall back to address text search
+      const addressQuery = encodeURIComponent(`${street}, ${city}, ${state}`);
+      Linking.openURL(`https://www.google.com/maps/search/?api=1&query=${addressQuery}`);
+      return;
+    }
+
+    // Native deeplinks open the Google Maps app with turn-by-turn directions
+    const nativeUrl = Platform.select({
+      ios: `comgooglemaps://?daddr=${latitude},${longitude}&directionsmode=driving`,
+      android: `google.navigation:q=${latitude},${longitude}&mode=d`,
+      default: `https://www.google.com/maps/dir/?api=1&destination=${latitude},${longitude}&travelmode=driving`,
+    })!;
+
+    const webFallback = `https://www.google.com/maps/dir/?api=1&destination=${latitude},${longitude}&travelmode=driving`;
+
+    Linking.canOpenURL(nativeUrl).then((supported) => {
+      Linking.openURL(supported ? nativeUrl : webFallback);
+    });
   }
 
   function handleCallCustomer() {
@@ -129,16 +153,16 @@ export default function DeliveryDetailsScreen() {
         return (
           <View className="space-y-3">
             <Button
-              title="Start Trip"
+              title="Picked"
               onPress={handleStartTrip}
               loading={isLoading}
-              icon={<Ionicons name="play-circle" size={20} color="#ffffff" />}
+              icon={<Ionicons name="checkmark-done-circle" size={20} color="#ffffff" />}
             />
             <Button
-              title="Navigate to Customer"
+              title="Open Map"
               variant="outline"
               onPress={handleNavigate}
-              icon={<Ionicons name="navigate" size={20} color="#1B9B8E" />}
+              icon={<Ionicons name="map" size={20} color="#1B9B8E" />}
             />
           </View>
         );
@@ -146,6 +170,11 @@ export default function DeliveryDetailsScreen() {
       case 'en_route':
         return (
           <View className="space-y-3">
+            {/* Status indicator */}
+            <View className="flex-row items-center justify-center bg-info/10 rounded-xl py-2 px-4">
+              <Ionicons name="bicycle" size={18} color="#3B82F6" />
+              <Text className="text-info font-semibold ml-2">En Route to Customer</Text>
+            </View>
             <Button
               title="Mark as Arrived"
               onPress={handleMarkArrived}
@@ -153,34 +182,46 @@ export default function DeliveryDetailsScreen() {
               icon={<Ionicons name="location" size={20} color="#ffffff" />}
             />
             <Button
-              title="Navigate to Customer"
+              title="Open Map"
               variant="outline"
               onPress={handleNavigate}
-              icon={<Ionicons name="navigate" size={20} color="#1B9B8E" />}
+              icon={<Ionicons name="map" size={20} color="#1B9B8E" />}
             />
           </View>
         );
 
       case 'arrived':
         return (
-          <View className="space-y-3">
-            <Input
-              label="Confirmation Code"
-              placeholder="Enter code from customer"
-              value={confirmationCode}
-              onChangeText={setConfirmationCode}
-              keyboardType="default"
-              autoCapitalize="characters"
-              maxLength={10}
-            />
-            <Button
-              title="Complete Delivery"
-              onPress={handleCompleteDelivery}
-              loading={isLoading}
-              disabled={!confirmationCode.trim()}
-              icon={<Ionicons name="checkmark-circle" size={20} color="#ffffff" />}
-            />
-          </View>
+          <KeyboardAvoidingView behavior={Platform.OS === 'ios' ? 'padding' : 'height'}>
+            <View className="mt-3">
+              <Input
+                label="Confirmation Code"
+                placeholder="Enter code from customer"
+                value={confirmationCode}
+                onChangeText={setConfirmationCode}
+                keyboardType="default"
+                autoCapitalize="characters"
+                maxLength={10}
+              />
+            </View>
+            <View className="mt-3">
+              <Button
+                title="Complete Delivery"
+                onPress={handleCompleteDelivery}
+                loading={isLoading}
+                disabled={!confirmationCode.trim()}
+                icon={<Ionicons name="checkmark-circle" size={20} color="#ffffff" />}
+              />
+            </View>
+            <View className="mt-4 mb-10">
+              <Button
+                title="Open Map"
+                variant="outline"
+                onPress={handleNavigate}
+                icon={<Ionicons name="map" size={20} color="#1B9B8E" />}
+              />
+            </View>
+          </KeyboardAvoidingView>
         );
 
       case 'completed':
@@ -230,72 +271,74 @@ export default function DeliveryDetailsScreen() {
 
       <ScrollView className="flex-1 px-4 pt-4">
         {/* Customer Info Card */}
-        <Card className="mb-4">
-          <View className="flex-row items-center justify-between mb-3">
-            <Text className="text-textPrimary font-bold text-lg">Customer</Text>
+        <Card className="mb-4 px-4 py-4">
+          <View className="flex-row items-center justify-between mb-4">
+            <Text className="text-textPrimary font-bold text-lg">Customer Info</Text>
             <TouchableOpacity
               onPress={handleCallCustomer}
-              className="w-10 h-10 rounded-full bg-primary/10 items-center justify-center"
+              className="flex-row items-center bg-primary/10 px-3 py-2 rounded-full"
             >
-              <Ionicons name="call" size={20} color="#1B9B8E" />
+              <Ionicons name="call" size={16} color="#1B9B8E" />
+              <Text className="text-primary font-semibold text-sm ml-1">Call</Text>
             </TouchableOpacity>
           </View>
 
-          <View className="flex-row items-center mb-2">
-            <Ionicons name="person" size={18} color="#6B7280" />
-            <Text className="text-textPrimary ml-2 font-medium">
-              {order.customerName}
-            </Text>
-          </View>
-
-          <View className="flex-row items-center">
-            <Ionicons name="call-outline" size={18} color="#6B7280" />
-            <Text className="text-textSecondary ml-2">
-              {formatPhoneNumber(order.customerPhone)}
-            </Text>
-          </View>
-        </Card>
-
-        {/* Delivery Address Card */}
-        <Card className="mb-4">
-          <View className="flex-row items-center justify-between mb-3">
-            <Text className="text-textPrimary font-bold text-lg">
-              Delivery Address
-            </Text>
-            <TouchableOpacity
-              onPress={handleNavigate}
-              className="w-10 h-10 rounded-full bg-primary/10 items-center justify-center"
-            >
-              <Ionicons name="navigate" size={20} color="#1B9B8E" />
-            </TouchableOpacity>
-          </View>
-
-          <View className="flex-row">
-            <Ionicons name="location" size={18} color="#6B7280" className="mt-1" />
-            <View className="flex-1 ml-2">
-              <Text className="text-textPrimary font-medium">
-                {order.deliveryAddress.street}
+          {/* Avatar + Name */}
+          <View className="flex-row items-center mb-4">
+            <View className="w-12 h-12 rounded-full bg-primary/10 items-center justify-center mr-3">
+              <Text className="text-primary font-bold text-lg">
+                {order.customerName?.charAt(0)?.toUpperCase() ?? '?'}
               </Text>
-              <Text className="text-textSecondary text-sm mt-1">
-                {order.deliveryAddress.city}, {order.deliveryAddress.state}
+            </View>
+            <View className="flex-1">
+              <Text className="text-textPrimary font-bold text-base">
+                {order.customerName ?? 'Unknown Customer'}
               </Text>
-              {order.deliveryAddress.description && (
-                <Text className="text-textMuted text-sm mt-2 italic">
-                  "{order.deliveryAddress.description}"
-                </Text>
-              )}
+              <Text className="text-textSecondary text-xs">Customer</Text>
             </View>
           </View>
+
+          {/* Details */}
+          <View className="border-t border-border pt-3">
+            <View className="flex-row items-center mb-3">
+              <Ionicons name="call-outline" size={16} color="#6B7280" />
+              <Text className="text-textSecondary ml-2 text-sm">
+                {order.customerPhone ? formatPhoneNumber(order.customerPhone) : 'N/A'}
+              </Text>
+            </View>
+
+            <View className="flex-row items-start mb-3">
+              <Ionicons name="location-outline" size={16} color="#6B7280" style={{ marginTop: 2 }} />
+              <View className="ml-2 flex-1">
+                <Text className="text-textSecondary text-sm font-medium">
+                  {order.deliveryAddress?.street ?? '—'}
+                </Text>
+                <Text className="text-textSecondary text-sm mt-0.5">
+                  {order.deliveryAddress?.city ?? ''}{order.deliveryAddress?.city && order.deliveryAddress?.state ? ', ' : ''}{order.deliveryAddress?.state ?? ''}
+                </Text>
+              </View>
+            </View>
+
+            {order.deliveryAddress?.description ? (
+              <View className="flex-row items-start mb-1">
+                <Ionicons name="information-circle-outline" size={16} color="#6B7280" style={{ marginTop: 2 }} />
+                <Text className="text-textSecondary text-sm ml-2 italic flex-1">
+                  "{order.deliveryAddress.description}"
+                </Text>
+              </View>
+            ) : null}
+          </View>
         </Card>
 
+
         {/* Order Details Card */}
-        <Card className="mb-4">
+        <Card className="mb-4 px-4 py-4">
           <Text className="text-textPrimary font-bold text-lg mb-3">
             Order Details
           </Text>
 
-          <View className="space-y-3">
-            <View className="flex-row items-center justify-between">
+          <View>
+            <View className="flex-row items-center justify-between mb-3">
               <View className="flex-row items-center">
                 <Ionicons name="water" size={18} color="#6B7280" />
                 <Text className="text-textSecondary ml-2">Fuel Quantity</Text>
@@ -305,7 +348,7 @@ export default function DeliveryDetailsScreen() {
               </Text>
             </View>
 
-            <View className="flex-row items-center justify-between">
+            <View className="flex-row items-center justify-between mb-3">
               <View className="flex-row items-center">
                 <Ionicons name="flash" size={18} color="#6B7280" />
                 <Text className="text-textSecondary ml-2">Delivery Mode</Text>
@@ -315,7 +358,7 @@ export default function DeliveryDetailsScreen() {
               </Text>
             </View>
 
-            <View className="flex-row items-center justify-between">
+            <View className="flex-row items-center justify-between mb-3">
               <View className="flex-row items-center">
                 <Ionicons name="cash" size={18} color="#6B7280" />
                 <Text className="text-textSecondary ml-2">Total Amount</Text>
@@ -325,8 +368,8 @@ export default function DeliveryDetailsScreen() {
               </Text>
             </View>
 
-            {order.estimatedArrival && (
-              <View className="flex-row items-center justify-between">
+            {order.estimatedArrival ? (
+              <View className="flex-row items-center justify-between mb-1">
                 <View className="flex-row items-center">
                   <Ionicons name="time" size={18} color="#6B7280" />
                   <Text className="text-textSecondary ml-2">Est. Arrival</Text>
@@ -335,65 +378,53 @@ export default function DeliveryDetailsScreen() {
                   {formatTime(order.estimatedArrival)}
                 </Text>
               </View>
-            )}
+            ) : null}
           </View>
         </Card>
 
         {/* Timeline Card */}
         {(order.startedAt || order.arrivedAt || order.completedAt) && (
-          <Card className="mb-4">
+          <Card className="mb-4 px-4 py-4">
             <Text className="text-textPrimary font-bold text-lg mb-3">
               Timeline
             </Text>
 
-            <View className="space-y-3">
-              {order.startedAt && (
-                <View className="flex-row items-center">
+            <View>
+              {order.startedAt ? (
+                <View className="flex-row items-center mb-3">
                   <View className="w-8 h-8 rounded-full bg-info/20 items-center justify-center mr-3">
                     <Ionicons name="play" size={14} color="#3B82F6" />
                   </View>
                   <View className="flex-1">
-                    <Text className="text-textPrimary font-medium text-sm">
-                      Trip Started
-                    </Text>
-                    <Text className="text-textSecondary text-xs">
-                      {formatTime(order.startedAt)}
-                    </Text>
+                    <Text className="text-textPrimary font-medium text-sm">Trip Started</Text>
+                    <Text className="text-textSecondary text-xs">{formatTime(order.startedAt)}</Text>
                   </View>
                 </View>
-              )}
+              ) : null}
 
-              {order.arrivedAt && (
-                <View className="flex-row items-center">
+              {order.arrivedAt ? (
+                <View className="flex-row items-center mb-3">
                   <View className="w-8 h-8 rounded-full bg-warning/20 items-center justify-center mr-3">
                     <Ionicons name="location" size={14} color="#F59E0B" />
                   </View>
                   <View className="flex-1">
-                    <Text className="text-textPrimary font-medium text-sm">
-                      Arrived
-                    </Text>
-                    <Text className="text-textSecondary text-xs">
-                      {formatTime(order.arrivedAt)}
-                    </Text>
+                    <Text className="text-textPrimary font-medium text-sm">Arrived</Text>
+                    <Text className="text-textSecondary text-xs">{formatTime(order.arrivedAt)}</Text>
                   </View>
                 </View>
-              )}
+              ) : null}
 
-              {order.completedAt && (
-                <View className="flex-row items-center">
+              {order.completedAt ? (
+                <View className="flex-row items-center mb-1">
                   <View className="w-8 h-8 rounded-full bg-success/20 items-center justify-center mr-3">
                     <Ionicons name="checkmark" size={14} color="#10B981" />
                   </View>
                   <View className="flex-1">
-                    <Text className="text-textPrimary font-medium text-sm">
-                      Completed
-                    </Text>
-                    <Text className="text-textSecondary text-xs">
-                      {formatTime(order.completedAt)}
-                    </Text>
+                    <Text className="text-textPrimary font-medium text-sm">Completed</Text>
+                    <Text className="text-textSecondary text-xs">{formatTime(order.completedAt)}</Text>
                   </View>
                 </View>
-              )}
+              ) : null}
             </View>
           </Card>
         )}

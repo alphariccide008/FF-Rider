@@ -29,7 +29,7 @@
         "NSLocationAlwaysAndWhenInUseUsageDescription": "FlexyFuel needs your location in the background to track deliveries and keep customers updated."
       },
       "config": {
-        "googleMapsApiKey": "YOUR_GOOGLE_MAPS_IOS_API_KEY"
+        "googleMapsApiKey": "AIzaSyBfmPpbkr6X13cJoECDqBRbR0lU6KAUKL4"
       }
     },
     "android": {
@@ -47,7 +47,7 @@
       ],
       "config": {
         "googleMaps": {
-          "apiKey": "YOUR_GOOGLE_MAPS_ANDROID_API_KEY"
+          "apiKey": "AIzaSyBfmPpbkr6X13cJoECDqBRbR0lU6KAUKL4"
         }
       }
     },
@@ -63,7 +63,11 @@
       "typedRoutes": true
     },
     "extra": {
-      "router": {}
-    }
+      "router": {},
+      "eas": {
+        "projectId": "9e84cf3f-0ae8-4c3d-bb9d-5cee1fb7536d"
+      }
+    },
+    "owner": "alphax01"
   }
 }
