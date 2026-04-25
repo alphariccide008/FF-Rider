@@ -3,12 +3,14 @@ import { View, Text, TouchableOpacity, Alert, ScrollView } from 'react-native';
 import { useRouter } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
 import * as Haptics from 'expo-haptics';
+import * as Location from 'expo-location';
 import { Card } from '../../components/common/Card';
 import { Button } from '../../components/common/Button';
 import { SuccessModal } from '../../components/modals/SuccessModal';
 import { ErrorModal } from '../../components/modals/ErrorModal';
 import { useDeliveryStore } from '../../stores/deliveryStore';
 import { BikeReadiness } from '../../types/user';
+import { requestLocationPermissions } from '../../services/locationTracking';
 
 // Problems to show when "Not Ready" is selected
 const PROBLEM_ITEMS = [
@@ -92,7 +94,20 @@ export default function BikeReadinessScreen() {
 
   async function submitReadiness() {
     try {
-      // Send bike readiness with problems (if not ready) or empty array (if ready)
+      if (selectedStatus === 'ready') {
+        const { status } = await Location.getForegroundPermissionsAsync();
+        if (status !== 'granted') {
+          const granted = await requestLocationPermissions();
+          if (!granted) {
+            Alert.alert(
+              'Location Access Needed',
+              'Your location is used to assign you nearby delivery orders. Without it, you may not receive orders. Please enable location in your device Settings.',
+              [{ text: 'Continue Anyway' }, { text: 'Cancel', style: 'cancel', onPress: () => {} }]
+            );
+          }
+        }
+      }
+
       await updateBikeReadiness(selectedStatus!, selectedProblems);
       setShowSuccess(true);
 
@@ -279,10 +294,16 @@ export default function BikeReadinessScreen() {
         {/* Info Box for Ready status */}
         {selectedStatus === 'ready' && (
           <View className="bg-success/10 border border-success rounded-2xl p-4 mb-6">
-            <View className="flex-row items-start">
+            <View className="flex-row items-start mb-2">
               <Ionicons name="checkmark-circle" size={20} color="#10B981" />
               <Text className="text-success text-sm ml-2 flex-1">
                 Your bike is ready! You'll be set to ONLINE and can receive new orders.
+              </Text>
+            </View>
+            <View className="flex-row items-start">
+              <Ionicons name="location" size={18} color="#10B981" />
+              <Text className="text-success text-sm ml-2 flex-1">
+                Your location will be shared so nearby orders can be assigned to you.
               </Text>
             </View>
           </View>

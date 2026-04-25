@@ -4,10 +4,12 @@ import { useRouter } from 'expo-router';
 import { LoadingSpinner } from '../components/common/LoadingSpinner';
 import { useAuthStore } from '../stores/authStore';
 import { isOnboardingComplete } from '../services/storage/secureStorage';
+import { requestLocationPermissions } from '../services/locationTracking';
+import * as Location from 'expo-location';
 
 export default function SplashScreen() {
   const router = useRouter();
-  const { loadStoredAuth, isAuthenticated, user } = useAuthStore();
+  const { loadStoredAuth } = useAuthStore();
 
   useEffect(() => {
     checkAuthAndNavigate();
@@ -21,9 +23,17 @@ export default function SplashScreen() {
       // Small delay for splash screen effect
       await new Promise(resolve => setTimeout(resolve, 1500));
 
+      // Read fresh state after async load completes
+      const { isAuthenticated, user } = useAuthStore.getState();
+
       // Check if user is authenticated and is a rider
       if (isAuthenticated && user?.role === 'rider') {
         router.replace('/(tabs)');
+        // Silently ensure location permission is granted for returning riders
+        const { status } = await Location.getForegroundPermissionsAsync();
+        if (status !== 'granted') {
+          requestLocationPermissions();
+        }
         return;
       }
 

@@ -60,15 +60,16 @@ function getDevBaseURL(): string {
   return `http://${ip}:${PORT}/api/v1`;
 }
 
-// Base URL for production (update when you deploy)
-const PROD_BASE_URL = 'https://api.flexyfuel.com/api/v1';
+// Base URL for production - Render deployment
+const PROD_BASE_URL = 'https://ff-backend-1.onrender.com/api/v1';
 
 export const API_CONFIG = {
   /**
    * Get the base URL based on environment
    */
   getBaseURL: (): string => {
-    return __DEV__ ? getDevBaseURL() : PROD_BASE_URL;
+    // Using Render production URL for tunnel testing
+    return PROD_BASE_URL;
   },
 
   /**

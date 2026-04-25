@@ -123,6 +123,23 @@ export const useDeliveryStore = create<DeliveryState>((set, get) => ({
 
       await riderApi.updateBikeReadiness(status, checklistItems);
 
+      // Start foreground location tracking when online, stop when offline
+      if (status === 'ready') {
+        try {
+          await LocationTracking.startLocationTrackingIfPermitted();
+          devLog('📍 Location tracking started - rider online');
+        } catch (trackingError) {
+          devError('Failed to start location tracking', trackingError);
+        }
+      } else {
+        try {
+          await LocationTracking.stopLocationTracking();
+          devLog('📍 Location tracking stopped - rider offline');
+        } catch (trackingError) {
+          devError('Failed to stop location tracking', trackingError);
+        }
+      }
+
       set({
         bikeReadiness: status,
         isLoading: false,

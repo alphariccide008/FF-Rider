@@ -8,6 +8,7 @@ export interface User {
   fullName: string;
   role: UserRole;
   isVerified: boolean;
+  profilePhoto?: string;
   createdAt: string;
   updatedAt: string;
 }

@@ -1,25 +1,68 @@
 import React, { useState } from 'react';
-import { View, Text, ScrollView, TouchableOpacity, Alert } from 'react-native';
+import {
+  View,
+  Text,
+  ScrollView,
+  TouchableOpacity,
+  Alert,
+  Image,
+  ActivityIndicator,
+  Pressable,
+} from 'react-native';
 import { useRouter } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
+import * as ImagePicker from 'expo-image-picker';
 import { Card } from '../../components/common/Card';
 import { Button } from '../../components/common/Button';
 import { useAuthStore } from '../../stores/authStore';
 import { useDeliveryStore } from '../../stores/deliveryStore';
+import { uploadProfilePhoto } from '../../services/api/auth.api';
 import { formatPhoneNumber } from '../../utils/formatters';
 import { APP_VERSION } from '../../utils/constants';
 
 export default function ProfileScreen() {
   const router = useRouter();
-  const { user, logout, isLoading } = useAuthStore();
+  const { user, logout, setUser } = useAuthStore();
   const { bikeReadiness } = useDeliveryStore();
   const [isLoggingOut, setIsLoggingOut] = useState(false);
+  const [isUploadingPhoto, setIsUploadingPhoto] = useState(false);
 
   // Determine if rider is online based on bike readiness
   const isOnline = bikeReadiness === 'ready';
   const statusText = isOnline ? 'ONLINE' : 'OFFLINE';
   const statusColor = isOnline ? '#10B981' : '#EF4444';
   const statusBgColor = isOnline ? 'bg-success/20' : 'bg-error/20';
+
+  const handleChangePhoto = async () => {
+    const { status } = await ImagePicker.requestMediaLibraryPermissionsAsync();
+    if (status !== 'granted') {
+      Alert.alert('Permission Required', 'Please allow access to your photo library.');
+      return;
+    }
+
+    const result = await ImagePicker.launchImageLibraryAsync({
+      mediaTypes: ['images'],
+      allowsEditing: true,
+      aspect: [1, 1],
+      quality: 0.8,
+    });
+
+    if (!result.canceled && result.assets[0]) {
+      const localUri = result.assets[0].uri;
+      setIsUploadingPhoto(true);
+      try {
+        const serverUrl = await uploadProfilePhoto(localUri);
+        if (user) {
+          setUser({ ...user, profilePhoto: serverUrl });
+        }
+        Alert.alert('Success', 'Profile photo updated!');
+      } catch (err: any) {
+        Alert.alert('Upload Failed', err.message || 'Could not upload photo. Please try again.');
+      } finally {
+        setIsUploadingPhoto(false);
+      }
+    }
+  };
 
   async function handleLogout() {
     Alert.alert('Logout', 'Are you sure you want to logout?', [
@@ -54,9 +97,73 @@ export default function ProfileScreen() {
         {/* User Info Card */}
         <Card className="mb-6">
           <View className="items-center py-4">
-            <View className="w-20 h-20 rounded-full bg-primary/10 items-center justify-center mb-4">
-              <Text className="text-4xl">👤</Text>
+            {/* Avatar with upload */}
+            <View className="mb-4">
+              <Pressable onPress={handleChangePhoto} disabled={isUploadingPhoto}>
+                <View>
+                  {user?.profilePhoto ? (
+                    <Image
+                      source={{ uri: user.profilePhoto }}
+                      style={{ width: 80, height: 80, borderRadius: 40 }}
+                    />
+                  ) : (
+                    <View className="w-20 h-20 rounded-full bg-primary/10 items-center justify-center">
+                      <Text className="text-4xl">👤</Text>
+                    </View>
+                  )}
+                  {/* Upload overlay */}
+                  {isUploadingPhoto ? (
+                    <View
+                      style={{
+                        position: 'absolute', top: 0, left: 0, right: 0, bottom: 0,
+                        borderRadius: 40, backgroundColor: 'rgba(0,0,0,0.45)',
+                        alignItems: 'center', justifyContent: 'center',
+                      }}
+                    >
+                      <ActivityIndicator color="#FFF" size="small" />
+                    </View>
+                  ) : (
+                    <View
+                      style={{
+                        position: 'absolute', bottom: 0, right: 0,
+                        width: 26, height: 26, borderRadius: 13,
+                        backgroundColor: '#1B9B8E',
+                        alignItems: 'center', justifyContent: 'center',
+                        borderWidth: 2, borderColor: '#FFF',
+                      }}
+                    >
+                      <Ionicons name="camera" size={13} color="#FFF" />
+                    </View>
+                  )}
+                </View>
+              </Pressable>
+              <Pressable onPress={handleChangePhoto} disabled={isUploadingPhoto} className="mt-1.5">
+                <Text style={{ color: '#1B9B8E', fontSize: 12, textAlign: 'center', fontWeight: '600' }}>
+                  {isUploadingPhoto ? 'Uploading…' : 'Change Photo'}
+                </Text>
+              </Pressable>
             </View>
+
+            {!user?.profilePhoto && (
+              <View
+                style={{
+                  backgroundColor: '#FEF3C7',
+                  borderRadius: 8,
+                  paddingHorizontal: 10,
+                  paddingVertical: 5,
+                  marginBottom: 8,
+                  flexDirection: 'row',
+                  alignItems: 'center',
+                  gap: 6,
+                }}
+              >
+                <Ionicons name="alert-circle" size={13} color="#D97706" />
+                <Text style={{ color: '#D97706', fontSize: 11, fontWeight: '600' }}>
+                  Please add a profile photo
+                </Text>
+              </View>
+            )}
+
             <Text className="text-textPrimary text-xl font-bold mb-1">
               {user?.fullName || 'Rider'}
             </Text>

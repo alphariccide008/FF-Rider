@@ -64,48 +64,60 @@ export async function startLocationTracking(onLocationUpdate?: (location: Locati
     return;
   }
 
-  try {
-    const hasPermission = await requestLocationPermissions();
+  const hasPermission = await requestLocationPermissions();
 
-    if (!hasPermission) {
-      throw new Error('Location permission not granted');
-    }
+  if (!hasPermission) {
+    throw new Error('Location permission not granted');
+  }
 
-    // Start foreground location tracking
-    locationSubscription = await Location.watchPositionAsync(
-      {
-        accuracy: Location.Accuracy.Balanced,
-        timeInterval: LOCATION_UPDATE_INTERVAL,
-        distanceInterval: LOCATION_UPDATE_DISTANCE,
-      },
-      async (location) => {
-        devLog('Location updated:', {
-          lat: location.coords.latitude,
-          lng: location.coords.longitude,
+  // Start foreground location tracking
+  locationSubscription = await Location.watchPositionAsync(
+    {
+      accuracy: Location.Accuracy.Balanced,
+      timeInterval: LOCATION_UPDATE_INTERVAL,
+      distanceInterval: LOCATION_UPDATE_DISTANCE,
+    },
+    async (location) => {
+      devLog('Location updated:', {
+        lat: location.coords.latitude,
+        lng: location.coords.longitude,
+      });
+
+      try {
+        await riderApi.updateLocation({
+          latitude: location.coords.latitude,
+          longitude: location.coords.longitude,
         });
-
-        // Send location to backend
-        try {
-          await riderApi.updateLocation({
-            latitude: location.coords.latitude,
-            longitude: location.coords.longitude,
-          });
-        } catch (error) {
-          devError('Failed to send location to backend', error);
-        }
-
-        // Call custom callback if provided
-        if (onLocationUpdate) {
-          onLocationUpdate(location);
-        }
+      } catch (error) {
+        devError('Failed to send location to backend', error);
       }
-    );
 
-    isTracking = true;
-    devLog('✅ Location tracking started');
+      if (onLocationUpdate) {
+        onLocationUpdate(location);
+      }
+    }
+  );
+
+  isTracking = true;
+  devLog('✅ Location tracking started');
+}
+
+/**
+ * Start tracking only if permission is already granted — does NOT re-request.
+ * Use this from the store after the UI has already handled the permission prompt.
+ */
+export async function startLocationTrackingIfPermitted(
+  onLocationUpdate?: (location: Location.LocationObject) => void
+) {
+  try {
+    const { status } = await Location.getForegroundPermissionsAsync();
+    if (status !== 'granted') {
+      devLog('📍 Location permission not yet granted — skipping auto-start');
+      return;
+    }
+    await startLocationTracking(onLocationUpdate);
   } catch (error) {
-    devError('Failed to start location tracking', error);
-    throw error;
+    devError('Failed to start location tracking (if permitted)', error);
   }
 }
 

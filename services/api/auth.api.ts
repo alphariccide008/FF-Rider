@@ -6,6 +6,7 @@ interface SendOTPResponse {
   message: string;
   phoneNumber?: string;
   email?: string;
+  otp?: string;
 }
 
 interface VerifyOTPResponse {
@@ -132,6 +133,28 @@ export async function loginWithPassword(
     password,
   });
   return response.data.data!;
+}
+
+/**
+ * Upload profile photo to Cloudinary via backend
+ */
+export async function uploadProfilePhoto(imageUri: string): Promise<string> {
+  const formData = new FormData();
+  formData.append('photo', {
+    uri: imageUri,
+    type: 'image/jpeg',
+    name: 'profile_photo.jpg',
+  } as any);
+
+  const response = await apiClient.post<ApiResponse<{ profilePhoto: string }>>(
+    '/user/profile/photo',
+    formData,
+    {
+      headers: { 'Content-Type': undefined },
+      transformRequest: (data) => data,
+    }
+  );
+  return response.data.data!.profilePhoto;
 }
 
 /**

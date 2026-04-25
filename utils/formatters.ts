@@ -5,7 +5,8 @@
  * @param phone - Phone number string
  * @returns Formatted phone number
  */
-export function formatPhoneNumber(phone: string): string {
+export function formatPhoneNumber(phone: string | undefined | null): string {
+  if (!phone) return 'N/A';
   // Remove all non-numeric characters
   const cleaned = phone.replace(/\D/g, '');
 

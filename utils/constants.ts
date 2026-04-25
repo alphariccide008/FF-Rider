@@ -5,7 +5,7 @@ export const APP_NAME = 'Flexyfuel Rider';
 export const APP_VERSION = '1.0.0';
 
 // API Configuration
-export const API_TIMEOUT = 30000; // 30 seconds
+export const API_TIMEOUT = 60000; // 60 seconds (handles Render cold starts)
 
 // Order Status Display Names
 export const ORDER_STATUS_LABELS: Record<OrderStatus, string> = {

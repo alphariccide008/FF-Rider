@@ -21,7 +21,12 @@
       "Bash(npx prisma db push:*)",
       "Bash(npx prisma generate:*)",
       "Bash(npx expo install:*)",
-      "Bash(taskkill:*)"
+      "Bash(taskkill:*)",
+      "Bash(cd /c/Users/HP/Desktop/flexyfuel-backend && DATABASE_URL=\"postgresql://flexyfuel_01_user:CIBGB0IQJtsXsrbEAcbXce4xKIGEAOzI@dpg-d6ok7urh46gs73amtvtg-a.oregon-postgres.render.com/flexyfuel_01?sslmode=require\" npx prisma migrate deploy 2>&1)",
+      "Bash(grep -n \"deliveryAddress\\\\|customerName\" /c/Users/HP/Desktop/Flexyrider/types/*.ts 2>/dev/null || grep -rn \"deliveryAddress\\\\|customerName\" /c/Users/HP/Desktop/Flexyrider/types/)",
+      "Bash(git add:*)",
+      "Bash(npx tsc:*)",
+      "Bash(git:*)"
     ]
   }
 }

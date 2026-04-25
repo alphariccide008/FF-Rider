@@ -20,6 +20,7 @@ interface AuthState {
   logout: () => Promise<void>;
   loadStoredAuth: () => Promise<void>;
   clearError: () => void;
+  setUser: (user: RiderProfile) => void;
 }
 
 export const useAuthStore = create<AuthState>((set, get) => ({
@@ -42,13 +43,24 @@ export const useAuthStore = create<AuthState>((set, get) => ({
       const isEmail = emailOrPhone.includes('@');
 
       if (isEmail) {
-        await authApi.sendEmailOTP(emailOrPhone);
+        const response = await authApi.sendEmailOTP(emailOrPhone);
+        devLog('OTP sent to email:', emailOrPhone);
+        if (response?.otp) {
+          console.log('=================================');
+          console.log('📧 EMAIL OTP CODE:', response.otp);
+          console.log('=================================');
+        }
       } else {
-        await authApi.loginWithPhone(emailOrPhone);
+        const response = await authApi.loginWithPhone(emailOrPhone);
+        devLog('OTP sent to phone:', emailOrPhone);
+        if (response?.otp) {
+          console.log('=================================');
+          console.log('📱 PHONE OTP CODE:', response.otp);
+          console.log('=================================');
+        }
       }
 
       set({ isLoading: false });
-      devLog('OTP sent successfully');
     } catch (error: any) {
       const errorMessage = error.message || 'Failed to send OTP';
       set({ isLoading: false, error: errorMessage });
@@ -230,5 +242,13 @@ export const useAuthStore = create<AuthState>((set, get) => ({
    */
   clearError: () => {
     set({ error: null });
+  },
+
+  /**
+   * Update user in store (e.g. after profile photo upload)
+   */
+  setUser: (user: RiderProfile) => {
+    set({ user });
+    storage.saveUser(user);
   },
 }));

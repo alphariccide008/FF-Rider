@@ -57,7 +57,16 @@
       "bundler": "metro"
     },
     "plugins": [
-      "expo-router"
+      "expo-router",
+      [
+        "expo-location",
+        {
+          "locationAlwaysAndWhenInUsePermission": "FlexyFuel needs your location to assign you nearby delivery orders and track active deliveries.",
+          "locationWhenInUsePermission": "FlexyFuel needs your location to assign you nearby delivery orders.",
+          "isIosBackgroundLocationEnabled": true,
+          "isAndroidBackgroundLocationEnabled": true
+        }
+      ]
     ],
     "experiments": {
       "typedRoutes": true

@@ -5,6 +5,28 @@ import { Ionicons } from '@expo/vector-icons';
 import axios from 'axios';
 import { BASE_URL } from '../../config/api.config';
 
+interface CurrentDelivery {
+  orderNumber: string;
+  status: string;
+  customerId: string;
+  customerName: string;
+  customerPhone: string;
+  fuelQuantity: number;
+  deliveryMode: string;
+  totalAmount: number;
+  deliveryFee: number;
+  deliveryAddress: {
+    street: string;
+    city: string;
+    state: string;
+    latitude: number;
+    longitude: number;
+    description?: string;
+  };
+  estimatedArrival?: string;
+  createdAt: string;
+}
+
 interface RiderData {
   riderId: string;
   riderName: string;
@@ -15,7 +37,7 @@ interface RiderData {
   isAvailable: boolean;
   bikeReady: boolean;
   activeOrders: number;
-  currentDelivery: any;
+  currentDelivery: CurrentDelivery | null;
 }
 
 interface AdminRidersMapProps {
@@ -222,15 +244,97 @@ export function AdminRidersMap({ accessToken, onError }: AdminRidersMapProps) {
             </View>
 
             {selectedRider.currentDelivery && (
-              <View style={styles.deliveryInfo}>
-                <Text style={styles.deliveryTitle}>Current Delivery:</Text>
-                <Text style={styles.deliveryText}>
-                  Order #{selectedRider.currentDelivery.orderNumber}
-                </Text>
-                <Text style={styles.deliveryText}>
-                  Status: {selectedRider.currentDelivery.status.replace('_', ' ').toUpperCase()}
-                </Text>
-              </View>
+              <ScrollView style={styles.deliveryInfo} nestedScrollEnabled>
+                <Text style={styles.deliveryTitle}>Current Delivery</Text>
+
+                <View style={styles.deliverySection}>
+                  <Text style={styles.deliverySectionLabel}>ORDER INFO</Text>
+                  <View style={styles.deliveryRow}>
+                    <Ionicons name="receipt-outline" size={14} color="#6B7280" />
+                    <Text style={styles.deliveryText}>
+                      Order #{selectedRider.currentDelivery.orderNumber}
+                    </Text>
+                  </View>
+                  <View style={styles.deliveryRow}>
+                    <Ionicons name="ellipse" size={10} color={
+                      selectedRider.currentDelivery.status === 'completed' ? '#10B981' :
+                      selectedRider.currentDelivery.status === 'cancelled' ? '#EF4444' : '#F59E0B'
+                    } />
+                    <Text style={styles.deliveryText}>
+                      {selectedRider.currentDelivery.status.replace(/_/g, ' ').toUpperCase()}
+                    </Text>
+                  </View>
+                  <View style={styles.deliveryRow}>
+                    <Ionicons name="flash-outline" size={14} color="#6B7280" />
+                    <Text style={styles.deliveryText}>
+                      {selectedRider.currentDelivery.fuelQuantity}L · {selectedRider.currentDelivery.deliveryMode.toUpperCase()}
+                    </Text>
+                  </View>
+                  <View style={styles.deliveryRow}>
+                    <Ionicons name="cash-outline" size={14} color="#6B7280" />
+                    <Text style={styles.deliveryText}>
+                      ₦{selectedRider.currentDelivery.totalAmount?.toLocaleString()} (Fee: ₦{selectedRider.currentDelivery.deliveryFee?.toLocaleString()})
+                    </Text>
+                  </View>
+                  {selectedRider.currentDelivery.estimatedArrival && (
+                    <View style={styles.deliveryRow}>
+                      <Ionicons name="time-outline" size={14} color="#6B7280" />
+                      <Text style={styles.deliveryText}>
+                        ETA: {new Date(selectedRider.currentDelivery.estimatedArrival).toLocaleTimeString()}
+                      </Text>
+                    </View>
+                  )}
+                </View>
+
+                <View style={styles.deliverySection}>
+                  <Text style={styles.deliverySectionLabel}>CUSTOMER INFO</Text>
+                  <View style={styles.deliveryRow}>
+                    <Ionicons name="person-outline" size={14} color="#6B7280" />
+                    <Text style={styles.deliveryText}>
+                      {selectedRider.currentDelivery.customerName}
+                    </Text>
+                  </View>
+                  <View style={styles.deliveryRow}>
+                    <Ionicons name="call-outline" size={14} color="#6B7280" />
+                    <Text style={styles.deliveryText}>
+                      {selectedRider.currentDelivery.customerPhone}
+                    </Text>
+                  </View>
+                  <View style={styles.deliveryRow}>
+                    <Ionicons name="finger-print-outline" size={14} color="#6B7280" />
+                    <Text style={styles.deliveryText}>
+                      ID: {selectedRider.currentDelivery.customerId}
+                    </Text>
+                  </View>
+                </View>
+
+                <View style={styles.deliverySection}>
+                  <Text style={styles.deliverySectionLabel}>DELIVERY ADDRESS</Text>
+                  <View style={styles.deliveryRow}>
+                    <Ionicons name="location-outline" size={14} color="#6B7280" />
+                    <Text style={[styles.deliveryText, { flex: 1 }]}>
+                      {selectedRider.currentDelivery.deliveryAddress.street},{' '}
+                      {selectedRider.currentDelivery.deliveryAddress.city},{' '}
+                      {selectedRider.currentDelivery.deliveryAddress.state}
+                    </Text>
+                  </View>
+                  {selectedRider.currentDelivery.deliveryAddress.description ? (
+                    <View style={styles.deliveryRow}>
+                      <Ionicons name="information-circle-outline" size={14} color="#6B7280" />
+                      <Text style={[styles.deliveryText, { flex: 1 }]}>
+                        {selectedRider.currentDelivery.deliveryAddress.description}
+                      </Text>
+                    </View>
+                  ) : null}
+                  <View style={styles.deliveryRow}>
+                    <Ionicons name="navigate-outline" size={14} color="#6B7280" />
+                    <Text style={styles.deliveryText}>
+                      {selectedRider.currentDelivery.deliveryAddress.latitude.toFixed(5)},{' '}
+                      {selectedRider.currentDelivery.deliveryAddress.longitude.toFixed(5)}
+                    </Text>
+                  </View>
+                </View>
+              </ScrollView>
             )}
           </View>
         </View>
@@ -369,7 +473,7 @@ const styles = StyleSheet.create({
     position: 'absolute',
     bottom: 20,
     left: 20,
-    right: 20,
+    right: 80,
     backgroundColor: '#ffffff',
     borderRadius: 16,
     padding: 16,
@@ -378,6 +482,7 @@ const styles = StyleSheet.create({
     shadowOpacity: 0.1,
     shadowRadius: 8,
     elevation: 4,
+    maxHeight: 420,
   },
   detailsHeader: {
     flexDirection: 'row',
@@ -404,20 +509,43 @@ const styles = StyleSheet.create({
   },
   deliveryInfo: {
     marginTop: 8,
-    padding: 12,
     backgroundColor: '#F3F4F6',
     borderRadius: 8,
+    maxHeight: 220,
   },
   deliveryTitle: {
     fontSize: 14,
-    fontWeight: '600',
+    fontWeight: '700',
     color: '#111827',
+    paddingHorizontal: 12,
+    paddingTop: 10,
+    marginBottom: 6,
+  },
+  deliverySection: {
+    paddingHorizontal: 12,
+    paddingBottom: 8,
+    borderBottomWidth: 1,
+    borderBottomColor: '#E5E7EB',
+    marginBottom: 4,
+  },
+  deliverySectionLabel: {
+    fontSize: 10,
+    fontWeight: '700',
+    color: '#1B9B8E',
+    letterSpacing: 0.8,
+    marginBottom: 6,
+    marginTop: 4,
+  },
+  deliveryRow: {
+    flexDirection: 'row',
+    alignItems: 'flex-start',
+    gap: 6,
     marginBottom: 4,
   },
   deliveryText: {
     fontSize: 13,
-    color: '#6B7280',
-    marginBottom: 2,
+    color: '#374151',
+    lineHeight: 18,
   },
   refreshButton: {
     position: 'absolute',

@@ -10,6 +10,7 @@ export default function ModalsLayout() {
       }}
     >
       <Stack.Screen name="delivery-details" />
+      <Stack.Screen name="track-order" />
     </Stack>
   );
 }
